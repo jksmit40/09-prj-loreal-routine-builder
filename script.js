@@ -1,5 +1,8 @@
 /* Get references to DOM elements */
 const categoryFilter = document.getElementById("categoryFilter");
+const productSearch = document.getElementById("productSearch");
+const clearSearchButton = document.getElementById("clearSearchBtn");
+const productResultsCount = document.getElementById("productResultsCount");
 const productsContainer = document.getElementById("productsContainer");
 const selectedProductsList = document.getElementById("selectedProductsList");
 const clearSelectionsButton = document.getElementById("clearSelectionsBtn");
@@ -24,6 +27,7 @@ const conversationMessages = [];
 const selectedProducts = new Map();
 let activeModalProduct = null;
 let displayedProducts = [];
+let allProducts = [];
 const systemMessage = {
   role: "system",
   content:
@@ -44,6 +48,29 @@ function escapeHtml(text) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlightText(text, query) {
+  if (!query) {
+    return escapeHtml(text);
+  }
+
+  const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, "ig"));
+  const queryLower = query.toLowerCase();
+
+  return parts
+    .map((part) => {
+      if (part.toLowerCase() === queryLower) {
+        return `<mark>${escapeHtml(part)}</mark>`;
+      }
+
+      return escapeHtml(part);
+    })
+    .join("");
 }
 
 function formatInlineText(text) {
@@ -190,6 +217,86 @@ function getDescriptionPreview(description) {
   return `${words.slice(0, 18).join(" ")}...`;
 }
 
+function updateProductResultsCount(filteredCount) {
+  const totalCount = allProducts.length;
+  const searchQuery = productSearch.value.trim();
+  const selectedCategory = categoryFilter.value;
+
+  if (!selectedCategory && !searchQuery) {
+    productResultsCount.textContent =
+      "Choose a category or type a product name to browse products.";
+    return;
+  }
+
+  if (totalCount === 0) {
+    productResultsCount.textContent = "Loading products...";
+    return;
+  }
+
+  if (filteredCount === 0) {
+    productResultsCount.textContent =
+      "No products match the current search and category filters.";
+    return;
+  }
+
+  const parts = [`Showing ${filteredCount} of ${totalCount} products`];
+
+  if (selectedCategory) {
+    parts.push(`in ${selectedCategory}`);
+  }
+
+  if (searchQuery) {
+    parts.push(`for "${searchQuery}"`);
+  }
+
+  productResultsCount.textContent = `${parts.join(" ")}.`;
+}
+
+function matchesSearchQuery(product, query) {
+  if (!query) {
+    return true;
+  }
+
+  const haystack = [
+    product.name,
+    product.brand,
+    product.category,
+    product.description,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(query);
+}
+
+function applyProductFilters() {
+  const selectedCategory = categoryFilter.value;
+  const searchQuery = productSearch.value.trim().toLowerCase();
+
+  if (!selectedCategory && !searchQuery) {
+    displayedProducts = [];
+    productResultsCount.textContent =
+      "Choose a category or type a product name to browse products.";
+    productsContainer.innerHTML = `
+      <div class="placeholder-message">
+        Select a category or search for a product to view items.
+      </div>
+    `;
+    return;
+  }
+
+  const filteredProducts = allProducts.filter((product) => {
+    const categoryMatches =
+      !selectedCategory || product.category === selectedCategory;
+    const searchMatches = matchesSearchQuery(product, searchQuery);
+
+    return categoryMatches && searchMatches;
+  });
+
+  updateProductResultsCount(filteredProducts.length);
+  displayProducts(filteredProducts);
+}
+
 function openProductModal(productId) {
   const product = displayedProducts.find(
     (displayedProduct) => displayedProduct.id === productId,
@@ -319,11 +426,23 @@ function loadSelectedProductsFromStorage() {
 
 function renderProducts(products) {
   displayedProducts = products;
+  const searchQuery = productSearch.value.trim();
 
   if (products.length === 0) {
+    const selectedCategory = categoryFilter.value;
+    const hasSearchQuery = searchQuery.length > 0;
+    const emptyMessage =
+      selectedCategory && hasSearchQuery
+        ? "No products match this category and search term."
+        : selectedCategory
+          ? "No products found for this category."
+          : hasSearchQuery
+            ? "No products match your search term."
+            : "Select a category or search for a product to view items.";
+
     productsContainer.innerHTML = `
       <div class="placeholder-message">
-        No products found for this category.
+        ${emptyMessage}
       </div>
     `;
     return;
@@ -343,10 +462,10 @@ function renderProducts(products) {
         >
           <img src="${product.image}" alt="${escapeHtml(product.name)}">
           <div class="product-info">
-            <h3>${escapeHtml(product.name)}</h3>
-            <p>${escapeHtml(product.brand)}</p>
+            <h3>${highlightText(product.name, searchQuery)}</h3>
+            <p>${highlightText(product.brand, searchQuery)}</p>
             <p class="product-description-preview">
-              ${escapeHtml(getDescriptionPreview(product.description))}
+              ${highlightText(getDescriptionPreview(product.description), searchQuery)}
             </p>
             <button
               type="button"
@@ -402,6 +521,13 @@ clearSelectionsButton.addEventListener("click", () => {
   saveSelectedProductsToStorage();
   renderSelectedProducts();
   renderProducts(displayedProducts);
+});
+
+clearSearchButton.addEventListener("click", () => {
+  productSearch.value = "";
+  categoryFilter.selectedIndex = 0;
+  applyProductFilters();
+  productSearch.focus();
 });
 
 productModal.addEventListener("click", (event) => {
@@ -599,20 +725,30 @@ function displayProducts(products) {
 
 /* Filter and display products when category changes */
 categoryFilter.addEventListener("change", async (e) => {
-  const products = await loadProducts();
-  const selectedCategory = e.target.value;
+  if (!allProducts.length) {
+    return;
+  }
 
-  /* filter() creates a new array containing only products 
-     where the category matches what the user selected */
-  const filteredProducts = products.filter(
-    (product) => product.category === selectedCategory,
-  );
-
-  displayProducts(filteredProducts);
+  applyProductFilters();
 });
+
+productSearch.addEventListener("input", () => {
+  if (!allProducts.length) {
+    return;
+  }
+
+  applyProductFilters();
+});
+
+async function initializeProducts() {
+  allProducts = await loadProducts();
+  applyProductFilters();
+}
 
 loadSelectedProductsFromStorage();
 renderSelectedProducts();
+
+initializeProducts();
 
 /* Send the chat request to the Cloudflare Worker */
 chatForm.addEventListener("submit", async (e) => {

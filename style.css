@@ -40,10 +40,65 @@ body {
 .search-section {
   margin: 30px 0;
   display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.search-section input[type="search"] {
+  flex: 1.4;
+  padding: 16px;
+  font-size: 16px;
+  border: 2px solid #000;
+  border-radius: 8px;
+  background: #fff;
+  color: #111;
+}
+
+.search-section input[type="search"]::placeholder {
+  color: #7a7a7a;
+}
+
+.search-section input[type="search"]:focus {
+  outline: none;
+  border-color: #666;
+}
+
+.clear-search-btn {
+  padding: 16px 14px;
+  border: 2px solid #000;
+  border-radius: 8px;
+  background: #fff;
+  color: #111;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.clear-search-btn:hover {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.clear-search-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.18);
+}
+
+.product-results-count {
+  margin: -18px 0 22px;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .search-section select {
-  width: 100%;
+  flex: 1;
   padding: 16px;
   font-size: 18px;
   border: 2px solid #000;
@@ -370,6 +425,13 @@ body {
 .product-card p {
   font-size: 14px;
   color: #666;
+}
+
+.product-card mark {
+  background: #fff2a8;
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 3px;
 }
 
 .product-description-preview {

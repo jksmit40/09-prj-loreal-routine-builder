@@ -25,6 +25,18 @@
 
       <!-- Category Filter -->
       <div class="search-section">
+        <label for="productSearch" class="visually-hidden"
+          >Search products</label
+        >
+        <input
+          id="productSearch"
+          type="search"
+          placeholder="Search by product name or keyword..."
+          autocomplete="off"
+        />
+        <button type="button" id="clearSearchBtn" class="clear-search-btn">
+          Clear Search
+        </button>
         <select id="categoryFilter">
           <option value="" disabled selected>Choose a Category</option>
           <option value="cleanser">Cleansers</option>
@@ -38,6 +50,11 @@
           <option value="fragrance">Fragrance</option>
         </select>
       </div>
+      <p
+        id="productResultsCount"
+        class="product-results-count"
+        aria-live="polite"
+      ></p>
 
       <!-- Products Grid -->
       <div id="productsContainer" class="products-grid"></div>
