@@ -1,2 +1,2 @@
-# Secrets file containing API keys
-secrets.js
+# Local Cloudflare Worker config
+.dev.vars
