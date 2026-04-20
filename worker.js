@@ -61,10 +61,80 @@ export default {
       );
     }
 
+    const userMessage =
+      messages
+        .slice()
+        .reverse()
+        .find((message) => message.role === "user")?.content || "";
+
+    const beautyKeywords = [
+      "beauty",
+      "skin",
+      "skincare",
+      "face",
+      "cleanser",
+      "moisturizer",
+      "sunscreen",
+      "spf",
+      "acne",
+      "serum",
+      "hair",
+      "haircare",
+      "shampoo",
+      "conditioner",
+      "mask",
+      "styling",
+      "makeup",
+      "foundation",
+      "mascara",
+      "lipstick",
+      "fragrance",
+      "perfume",
+      "routine",
+      "l'oreal",
+      "loreal",
+      "l'oréal",
+      "cerave",
+      "la roche-posay",
+      "vichy",
+      "maybelline",
+      "lancome",
+      "garnier",
+      "kiehl's",
+      "skinceuticals",
+      "urban decay",
+      "yves saint laurent",
+      "redken",
+      "kerastase",
+    ];
+
+    const isBeautyQuestion = beautyKeywords.some((keyword) =>
+      userMessage.toLowerCase().includes(keyword),
+    );
+
+    if (!isBeautyQuestion) {
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content:
+                  "I only answer beauty questions. Ask me about skincare, haircare, makeup, fragrance, routines, or L'Oréal product recommendations.",
+              },
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: corsHeaders,
+        },
+      );
+    }
+
     const systemMessage = {
       role: "system",
       content:
-        "You are a friendly L'Oréal beauty assistant. Help with makeup, skincare, haircare, fragrance, routines, and product discovery. Keep answers clear, practical, and supportive.",
+        "You are a friendly L'Oréal beauty assistant. Only answer questions about beauty, including skincare, haircare, makeup, fragrance, routines, and L'Oréal product recommendations. If the user asks about anything else, refuse briefly and invite them to ask a beauty question. Keep answers clear, practical, and supportive.",
     };
 
     const requestMessages = messages.some(
