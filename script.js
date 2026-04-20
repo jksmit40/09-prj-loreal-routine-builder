@@ -78,7 +78,7 @@ function renderSelectedProducts() {
             Remove
           </button>
         </div>
-      `
+      `,
     )
     .join("");
 }
