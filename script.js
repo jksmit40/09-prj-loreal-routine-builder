@@ -22,17 +22,61 @@ const sendButton = document.getElementById("sendBtn");
 /* Replace this with your deployed Cloudflare Worker URL. */
 const workerUrl = window.OPENAI_WORKER_URL || "";
 const savedSelectionsKey = "loreal-selected-products";
+const savedDirectionKey = "loreal-layout-direction";
 const chatUiMessages = [];
 const conversationMessages = [];
 const selectedProducts = new Map();
 let activeModalProduct = null;
 let displayedProducts = [];
 let allProducts = [];
+const rtlLanguagePrefixes = ["ar", "fa", "he", "ur"];
 const systemMessage = {
   role: "system",
   content:
     "You are a friendly L'Oréal beauty assistant. Help with makeup, skincare, haircare, fragrance, routines, and product discovery. Keep answers clear, practical, and supportive.",
 };
+
+function isRtlLanguage(languageCode) {
+  if (!languageCode) {
+    return false;
+  }
+
+  const normalizedCode = languageCode.toLowerCase();
+  return rtlLanguagePrefixes.some((prefix) =>
+    normalizedCode.startsWith(prefix),
+  );
+}
+
+function getRequestedDirection() {
+  const dirFromMarkup = document.documentElement.getAttribute("dir");
+
+  if (dirFromMarkup === "rtl" || dirFromMarkup === "ltr") {
+    return dirFromMarkup;
+  }
+
+  const dirFromQuery = new URLSearchParams(window.location.search).get("dir");
+
+  if (dirFromQuery === "rtl" || dirFromQuery === "ltr") {
+    return dirFromQuery;
+  }
+
+  const dirFromStorage = localStorage.getItem(savedDirectionKey);
+
+  if (dirFromStorage === "rtl" || dirFromStorage === "ltr") {
+    return dirFromStorage;
+  }
+
+  return isRtlLanguage(document.documentElement.lang) ? "rtl" : "ltr";
+}
+
+function applyDocumentDirection(direction) {
+  const safeDirection = direction === "rtl" ? "rtl" : "ltr";
+
+  document.documentElement.setAttribute("dir", safeDirection);
+  localStorage.setItem(savedDirectionKey, safeDirection);
+}
+
+applyDocumentDirection(getRequestedDirection());
 
 /* Show initial placeholder until user selects a category */
 productsContainer.innerHTML = `

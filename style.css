@@ -17,6 +17,10 @@ body {
     linear-gradient(180deg, #f7efe8 0%, #f3ebe3 48%, #fbf8f4 100%);
 }
 
+html[dir="rtl"] body {
+  direction: rtl;
+}
+
 body::before {
   content: "";
   position: fixed;
@@ -127,6 +131,11 @@ body::before {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+html[dir="rtl"] .search-section::before {
+  left: auto;
+  right: 18px;
 }
 
 .search-section input[type="search"] {
@@ -267,12 +276,29 @@ body::before {
   color: #8c1d1d;
 }
 
+html[dir="rtl"] .chat-message--user {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+html[dir="rtl"] .chat-message--assistant,
+html[dir="rtl"] .chat-message--system,
+html[dir="rtl"] .chat-message--error {
+  margin-right: 0;
+  margin-left: auto;
+}
+
 .chat-message strong {
   display: inline-block;
   margin-right: 8px;
   margin-bottom: 8px;
   font-size: 14px;
   letter-spacing: 0.02em;
+}
+
+html[dir="rtl"] .chat-message strong {
+  margin-right: 0;
+  margin-left: 8px;
 }
 
 .chat-message__content p {
@@ -352,6 +378,11 @@ body::before {
 .assistant-list {
   margin: 8px 0 16px;
   padding-left: 22px;
+}
+
+html[dir="rtl"] .assistant-list {
+  padding-left: 0;
+  padding-right: 22px;
 }
 
 .assistant-list li {
@@ -551,6 +582,13 @@ body::before {
   min-height: 110px;
 }
 
+html[dir="rtl"] .product-card .product-info,
+html[dir="rtl"] .selected-products,
+html[dir="rtl"] .chatbox,
+html[dir="rtl"] .product-results-count {
+  text-align: right;
+}
+
 .product-card h3 {
   font-size: 18px;
   margin-bottom: 8px;
@@ -592,6 +630,10 @@ body::before {
     background 0.2s ease,
     color 0.2s ease,
     transform 0.2s ease;
+}
+
+html[dir="rtl"] .product-description-toggle {
+  align-self: flex-end;
 }
 
 .product-description-toggle:hover {
@@ -753,6 +795,11 @@ body::before {
   margin-right: 8px;
 }
 
+html[dir="rtl"] .generate-btn i {
+  margin-right: 0;
+  margin-left: 8px;
+}
+
 .product-modal {
   position: fixed;
   inset: 0;
@@ -800,6 +847,11 @@ body::before {
   cursor: pointer;
 }
 
+html[dir="rtl"] .product-modal__close {
+  right: auto;
+  left: 14px;
+}
+
 .product-modal__close:hover {
   background: #e7e7e7;
 }
@@ -814,6 +866,19 @@ body::before {
   grid-template-columns: 220px 1fr;
   gap: 24px;
   align-items: start;
+}
+
+html[dir="rtl"] .product-modal__content {
+  grid-template-columns: 1fr 220px;
+}
+
+html[dir="rtl"] .product-modal__content img {
+  order: 2;
+}
+
+html[dir="rtl"] .product-modal__copy {
+  order: 1;
+  text-align: right;
 }
 
 .product-modal__content img {
