@@ -44,6 +44,140 @@ function escapeHtml(text) {
     .replaceAll("'", "&#39;");
 }
 
+function formatInlineText(text) {
+  return escapeHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/__(.+?)__/g, "<strong>$1</strong>");
+}
+
+function renderTextBlocks(content) {
+  return content
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => `<p>${formatInlineText(line)}</p>`)
+    .join("");
+}
+
+function getHeadingText(line) {
+  const markdownHeadingMatch = line.match(/^#{1,3}\s+(.+)$/);
+
+  if (markdownHeadingMatch) {
+    return markdownHeadingMatch[1].trim();
+  }
+
+  const routineHeadingMatch = line.match(
+    /^(morning|evening|night|weekly|routine overview|summary|tips?)\b.*:?$/i,
+  );
+
+  if (routineHeadingMatch) {
+    return line.replace(/:+$/, "").trim();
+  }
+
+  return null;
+}
+
+function getNumberedStep(line) {
+  const stepMatch = line.match(/^(?:step\s*)?(\d+)[\).:\-\s]+(.+)$/i);
+
+  if (!stepMatch) {
+    return null;
+  }
+
+  return {
+    number: stepMatch[1],
+    text: stepMatch[2].trim(),
+  };
+}
+
+function getBulletItem(line) {
+  const bulletMatch = line.match(/^[-*•]\s+(.+)$/);
+
+  if (!bulletMatch) {
+    return null;
+  }
+
+  return bulletMatch[1].trim();
+}
+
+function formatAssistantContent(content) {
+  const lines = content
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    return "<p>No response received.</p>";
+  }
+
+  const htmlParts = [];
+  let activeListType = "none";
+
+  function closeList() {
+    if (activeListType === "steps") {
+      htmlParts.push("</ol>");
+    }
+
+    if (activeListType === "bullets") {
+      htmlParts.push("</ul>");
+    }
+
+    activeListType = "none";
+  }
+
+  lines.forEach((line) => {
+    const headingText = getHeadingText(line);
+
+    if (headingText) {
+      closeList();
+      htmlParts.push(
+        `<h4 class="assistant-heading">${formatInlineText(headingText)}</h4>`,
+      );
+      return;
+    }
+
+    const step = getNumberedStep(line);
+
+    if (step) {
+      if (activeListType !== "steps") {
+        closeList();
+        htmlParts.push('<ol class="assistant-steps">');
+        activeListType = "steps";
+      }
+
+      htmlParts.push(`
+        <li class="assistant-step">
+          <div class="assistant-step__badge">Step ${escapeHtml(step.number)}</div>
+          <p class="assistant-step__text">${formatInlineText(step.text)}</p>
+        </li>
+      `);
+      return;
+    }
+
+    const bulletText = getBulletItem(line);
+
+    if (bulletText) {
+      if (activeListType !== "bullets") {
+        closeList();
+        htmlParts.push('<ul class="assistant-list">');
+        activeListType = "bullets";
+      }
+
+      htmlParts.push(`<li>${formatInlineText(bulletText)}</li>`);
+      return;
+    }
+
+    closeList();
+    htmlParts.push(
+      `<p class="assistant-paragraph">${formatInlineText(line)}</p>`,
+    );
+  });
+
+  closeList();
+
+  return `<div class="assistant-rich">${htmlParts.join("")}</div>`;
+}
+
 function getDescriptionPreview(description) {
   const words = description.split(/\s+/);
 
@@ -87,9 +221,14 @@ function renderChatMessages() {
     .map(
       (message) => `
         <div class="chat-message chat-message--${message.role}">
-          <strong>${escapeHtml(message.label)}:</strong> ${escapeHtml(
-            message.content,
-          )}
+          <strong>${escapeHtml(message.label)}:</strong>
+          <div class="chat-message__content">
+            ${
+              message.role === "assistant"
+                ? formatAssistantContent(message.content)
+                : renderTextBlocks(message.content)
+            }
+          </div>
         </div>
       `,
     )
@@ -437,7 +576,7 @@ generateRoutineButton.addEventListener("click", async () => {
     selectedProductData,
     null,
     2,
-  )}`;
+  )}\n\nFormat your answer with clear headings and spacing using this structure:\n## Routine Overview\n### Morning\n1. ...\n2. ...\n### Evening\n1. ...\n2. ...\n### Tips\n- ...\n- ...`;
 
   await requestAssistantReply(routineRequest, {
     chatMessageText:
