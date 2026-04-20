@@ -85,6 +85,36 @@
       </footer>
     </div>
 
+    <div id="productModal" class="product-modal" hidden aria-hidden="true">
+      <div class="product-modal__backdrop" data-modal-close></div>
+      <div
+        class="product-modal__dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="productModalTitle"
+      >
+        <button
+          type="button"
+          class="product-modal__close"
+          data-modal-close
+          aria-label="Close product details"
+        >
+          ×
+        </button>
+        <div class="product-modal__content">
+          <img id="productModalImage" alt="" />
+          <div class="product-modal__copy">
+            <p id="productModalBrand" class="product-modal__brand"></p>
+            <h3 id="productModalTitle"></h3>
+            <p
+              id="productModalDescription"
+              class="product-modal__description"
+            ></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="config.js"></script>
     <script src="script.js"></script>
   </body>

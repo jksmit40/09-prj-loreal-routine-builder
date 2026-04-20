@@ -2,6 +2,13 @@
 const categoryFilter = document.getElementById("categoryFilter");
 const productsContainer = document.getElementById("productsContainer");
 const selectedProductsList = document.getElementById("selectedProductsList");
+const productModal = document.getElementById("productModal");
+const productModalImage = document.getElementById("productModalImage");
+const productModalBrand = document.getElementById("productModalBrand");
+const productModalTitle = document.getElementById("productModalTitle");
+const productModalDescription = document.getElementById(
+  "productModalDescription",
+);
 const chatForm = document.getElementById("chatForm");
 const chatWindow = document.getElementById("chatWindow");
 const userInput = document.getElementById("userInput");
@@ -12,6 +19,7 @@ const workerUrl = window.OPENAI_WORKER_URL || "";
 const chatUiMessages = [];
 const conversationMessages = [];
 const selectedProducts = new Map();
+let activeModalProduct = null;
 let displayedProducts = [];
 const systemMessage = {
   role: "system",
@@ -33,6 +41,44 @@ function escapeHtml(text) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function getDescriptionPreview(description) {
+  const words = description.split(/\s+/);
+
+  if (words.length <= 18) {
+    return description;
+  }
+
+  return `${words.slice(0, 18).join(" ")}...`;
+}
+
+function openProductModal(productId) {
+  const product = displayedProducts.find(
+    (displayedProduct) => displayedProduct.id === productId,
+  );
+
+  if (!product) {
+    return;
+  }
+
+  activeModalProduct = product;
+  productModalImage.src = product.image;
+  productModalImage.alt = product.name;
+  productModalBrand.textContent = product.brand;
+  productModalTitle.textContent = product.name;
+  productModalDescription.textContent = product.description;
+  productModal.hidden = false;
+  productModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  productModal.querySelector(".product-modal__close")?.focus();
+}
+
+function closeProductModal() {
+  activeModalProduct = null;
+  productModal.hidden = true;
+  productModal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
 }
 
 function renderChatMessages() {
@@ -111,6 +157,17 @@ function renderProducts(products) {
           <div class="product-info">
             <h3>${escapeHtml(product.name)}</h3>
             <p>${escapeHtml(product.brand)}</p>
+            <p class="product-description-preview">
+              ${escapeHtml(getDescriptionPreview(product.description))}
+            </p>
+            <button
+              type="button"
+              class="product-description-toggle"
+              data-description-toggle="${product.id}"
+              aria-haspopup="dialog"
+            >
+              Read details
+            </button>
           </div>
         </div>
       `;
@@ -150,7 +207,27 @@ selectedProductsList.addEventListener("click", (event) => {
   renderProducts(displayedProducts);
 });
 
+productModal.addEventListener("click", (event) => {
+  if (event.target.hasAttribute("data-modal-close")) {
+    closeProductModal();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !productModal.hidden) {
+    closeProductModal();
+  }
+});
+
 productsContainer.addEventListener("click", (event) => {
+  const descriptionButton = event.target.closest(".product-description-toggle");
+
+  if (descriptionButton) {
+    event.stopPropagation();
+    openProductModal(Number(descriptionButton.dataset.descriptionToggle));
+    return;
+  }
+
   const productCard = event.target.closest(".product-card");
 
   if (!productCard || !productsContainer.contains(productCard)) {
@@ -161,6 +238,14 @@ productsContainer.addEventListener("click", (event) => {
 });
 
 productsContainer.addEventListener("keydown", (event) => {
+  const descriptionButton = event.target.closest(".product-description-toggle");
+
+  if (descriptionButton && (event.key === "Enter" || event.key === " ")) {
+    event.preventDefault();
+    openProductModal(Number(descriptionButton.dataset.descriptionToggle));
+    return;
+  }
+
   if (event.key !== "Enter" && event.key !== " ") {
     return;
   }
