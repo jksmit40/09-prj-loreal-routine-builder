@@ -2,6 +2,7 @@
 const categoryFilter = document.getElementById("categoryFilter");
 const productsContainer = document.getElementById("productsContainer");
 const selectedProductsList = document.getElementById("selectedProductsList");
+const generateRoutineButton = document.getElementById("generateRoutine");
 const productModal = document.getElementById("productModal");
 const productModalImage = document.getElementById("productModalImage");
 const productModalBrand = document.getElementById("productModalBrand");
@@ -284,6 +285,86 @@ function getAssistantReply(data) {
   return data?.choices?.[0]?.message?.content;
 }
 
+function setChatLoadingState(isLoading) {
+  userInput.disabled = isLoading;
+  sendButton.disabled = isLoading;
+  generateRoutineButton.disabled = isLoading;
+}
+
+async function requestAssistantReply(userMessageText, options = {}) {
+  const chatMessageText = options.chatMessageText || userMessageText;
+  const showUserMessage = options.showUserMessage !== false;
+
+  if (!workerUrl || workerUrl.includes("YOUR-WORKER-URL")) {
+    addChatMessage(
+      "error",
+      "Set OPENAI_WORKER_URL in config.js to your deployed Worker endpoint.",
+      "Error",
+    );
+    return;
+  }
+
+  if (showUserMessage) {
+    addChatMessage("user", chatMessageText, "You");
+  }
+
+  conversationMessages.push({
+    role: "user",
+    content: userMessageText,
+  });
+
+  const loadingMessageIndex =
+    chatUiMessages.push({
+      role: "assistant",
+      label: "Assistant",
+      content: "Thinking...",
+    }) - 1;
+
+  renderChatMessages();
+  setChatLoadingState(true);
+
+  try {
+    const response = await fetch(workerUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages: [systemMessage, ...conversationMessages],
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.error?.message || "The Worker returned an error.");
+    }
+
+    const assistantReply = getAssistantReply(data);
+
+    if (!assistantReply) {
+      throw new Error("The Worker response did not include a reply.");
+    }
+
+    conversationMessages.push({
+      role: "assistant",
+      content: assistantReply,
+    });
+
+    updateChatMessage(
+      loadingMessageIndex,
+      "assistant",
+      assistantReply,
+      "Assistant",
+    );
+  } catch (error) {
+    updateChatMessage(loadingMessageIndex, "error", error.message, "Error");
+  } finally {
+    setChatLoadingState(false);
+    userInput.focus();
+  }
+}
+
 /* Show an initial chat message */
 addChatMessage(
   "assistant",
@@ -329,73 +410,37 @@ chatForm.addEventListener("submit", async (e) => {
     return;
   }
 
-  if (!workerUrl || workerUrl.includes("YOUR-WORKER-URL")) {
+  userInput.value = "";
+  await requestAssistantReply(message);
+});
+
+generateRoutineButton.addEventListener("click", async () => {
+  if (selectedProducts.size === 0) {
     addChatMessage(
       "error",
-      "Set OPENAI_WORKER_URL in config.js to your deployed Worker endpoint.",
+      "Select at least one product before generating a routine.",
       "Error",
     );
     return;
   }
 
-  addChatMessage("user", message, "You");
-  conversationMessages.push({
-    role: "user",
-    content: message,
+  const selectedProductData = Array.from(selectedProducts.values()).map(
+    (product) => ({
+      name: product.name,
+      brand: product.brand,
+      category: product.category,
+      description: product.description,
+    }),
+  );
+
+  const routineRequest = `Build a personalized beauty routine using only these selected products. For each step, explain why the product fits and when to use it.\n\nSelected products JSON:\n${JSON.stringify(
+    selectedProductData,
+    null,
+    2,
+  )}`;
+
+  await requestAssistantReply(routineRequest, {
+    chatMessageText:
+      "Generate a personalized routine with my selected products.",
   });
-
-  userInput.value = "";
-  userInput.disabled = true;
-  sendButton.disabled = true;
-
-  const loadingMessageIndex =
-    chatUiMessages.push({
-      role: "assistant",
-      label: "Assistant",
-      content: "Thinking…",
-    }) - 1;
-
-  renderChatMessages();
-
-  try {
-    const response = await fetch(workerUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messages: [systemMessage, ...conversationMessages],
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data?.error?.message || "The Worker returned an error.");
-    }
-
-    const assistantReply = getAssistantReply(data);
-
-    if (!assistantReply) {
-      throw new Error("The Worker response did not include a reply.");
-    }
-
-    conversationMessages.push({
-      role: "assistant",
-      content: assistantReply,
-    });
-
-    updateChatMessage(
-      loadingMessageIndex,
-      "assistant",
-      assistantReply,
-      "Assistant",
-    );
-  } catch (error) {
-    updateChatMessage(loadingMessageIndex, "error", error.message, "Error");
-  } finally {
-    userInput.disabled = false;
-    sendButton.disabled = false;
-    userInput.focus();
-  }
 });
