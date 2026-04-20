@@ -2,6 +2,7 @@
 const categoryFilter = document.getElementById("categoryFilter");
 const productsContainer = document.getElementById("productsContainer");
 const selectedProductsList = document.getElementById("selectedProductsList");
+const clearSelectionsButton = document.getElementById("clearSelectionsBtn");
 const generateRoutineButton = document.getElementById("generateRoutine");
 const productModal = document.getElementById("productModal");
 const productModalImage = document.getElementById("productModalImage");
@@ -17,6 +18,7 @@ const sendButton = document.getElementById("sendBtn");
 
 /* Replace this with your deployed Cloudflare Worker URL. */
 const workerUrl = window.OPENAI_WORKER_URL || "";
+const savedSelectionsKey = "loreal-selected-products";
 const chatUiMessages = [];
 const conversationMessages = [];
 const selectedProducts = new Map();
@@ -238,6 +240,8 @@ function renderChatMessages() {
 }
 
 function renderSelectedProducts() {
+  clearSelectionsButton.disabled = selectedProducts.size === 0;
+
   if (selectedProducts.size === 0) {
     selectedProductsList.innerHTML = `
       <div class="selected-products-empty">
@@ -267,6 +271,50 @@ function renderSelectedProducts() {
       `,
     )
     .join("");
+}
+
+function saveSelectedProductsToStorage() {
+  const savedProducts = Array.from(selectedProducts.values()).map(
+    (product) => ({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      category: product.category,
+      description: product.description,
+      image: product.image,
+    }),
+  );
+
+  localStorage.setItem(savedSelectionsKey, JSON.stringify(savedProducts));
+}
+
+function loadSelectedProductsFromStorage() {
+  const savedProductsJson = localStorage.getItem(savedSelectionsKey);
+
+  if (!savedProductsJson) {
+    return;
+  }
+
+  try {
+    const savedProducts = JSON.parse(savedProductsJson);
+
+    if (!Array.isArray(savedProducts)) {
+      return;
+    }
+
+    savedProducts.forEach((product) => {
+      if (
+        product &&
+        typeof product.id === "number" &&
+        typeof product.name === "string" &&
+        typeof product.brand === "string"
+      ) {
+        selectedProducts.set(product.id, product);
+      }
+    });
+  } catch {
+    localStorage.removeItem(savedSelectionsKey);
+  }
 }
 
 function renderProducts(products) {
@@ -330,6 +378,7 @@ function toggleProductSelection(productId) {
     selectedProducts.set(productId, product);
   }
 
+  saveSelectedProductsToStorage();
   renderSelectedProducts();
   renderProducts(displayedProducts);
 }
@@ -343,6 +392,14 @@ selectedProductsList.addEventListener("click", (event) => {
 
   const productId = Number(removeButton.dataset.productId);
   selectedProducts.delete(productId);
+  saveSelectedProductsToStorage();
+  renderSelectedProducts();
+  renderProducts(displayedProducts);
+});
+
+clearSelectionsButton.addEventListener("click", () => {
+  selectedProducts.clear();
+  saveSelectedProductsToStorage();
   renderSelectedProducts();
   renderProducts(displayedProducts);
 });
@@ -537,6 +594,7 @@ categoryFilter.addEventListener("change", async (e) => {
   displayProducts(filteredProducts);
 });
 
+loadSelectedProductsFromStorage();
 renderSelectedProducts();
 
 /* Send the chat request to the Cloudflare Worker */
