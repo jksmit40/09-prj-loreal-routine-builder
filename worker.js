@@ -154,7 +154,7 @@ export default {
         body: JSON.stringify({
           model: "gpt-4o",
           messages: requestMessages,
-          max_completion_tokens: 300,
+          max_completion_tokens: 900,
         }),
       },
     );

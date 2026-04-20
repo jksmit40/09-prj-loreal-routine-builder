@@ -490,6 +490,8 @@ function setChatLoadingState(isLoading) {
 async function requestAssistantReply(userMessageText, options = {}) {
   const chatMessageText = options.chatMessageText || userMessageText;
   const showUserMessage = options.showUserMessage !== false;
+  const useConversationHistory = options.useConversationHistory !== false;
+  const persistInConversation = options.persistInConversation !== false;
 
   if (!workerUrl || workerUrl.includes("YOUR-WORKER-URL")) {
     addChatMessage(
@@ -504,10 +506,23 @@ async function requestAssistantReply(userMessageText, options = {}) {
     addChatMessage("user", chatMessageText, "You");
   }
 
-  conversationMessages.push({
+  const userMessage = {
     role: "user",
     content: userMessageText,
-  });
+  };
+
+  let requestMessages;
+
+  if (useConversationHistory) {
+    if (persistInConversation) {
+      conversationMessages.push(userMessage);
+      requestMessages = [systemMessage, ...conversationMessages];
+    } else {
+      requestMessages = [systemMessage, ...conversationMessages, userMessage];
+    }
+  } else {
+    requestMessages = [systemMessage, userMessage];
+  }
 
   const loadingMessageIndex =
     chatUiMessages.push({
@@ -526,7 +541,7 @@ async function requestAssistantReply(userMessageText, options = {}) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        messages: [systemMessage, ...conversationMessages],
+        messages: requestMessages,
       }),
     });
 
@@ -542,10 +557,12 @@ async function requestAssistantReply(userMessageText, options = {}) {
       throw new Error("The Worker response did not include a reply.");
     }
 
-    conversationMessages.push({
-      role: "assistant",
-      content: assistantReply,
-    });
+    if (persistInConversation) {
+      conversationMessages.push({
+        role: "assistant",
+        content: assistantReply,
+      });
+    }
 
     updateChatMessage(
       loadingMessageIndex,
@@ -634,10 +651,12 @@ generateRoutineButton.addEventListener("click", async () => {
     selectedProductData,
     null,
     2,
-  )}\n\nFormat your answer with clear headings and spacing using this structure:\n## Routine Overview\n### Morning\n1. ...\n2. ...\n### Evening\n1. ...\n2. ...\n### Tips\n- ...\n- ...`;
+  )}\n\nImportant rules:\n- Include every selected product exactly once in the routine.\n- If multiple products are in the same category, still include each one in a separate step.\n- Use product names exactly as written in the JSON.\n\nFormat your answer with this structure:\n## Routine Overview\n(1-2 short lines)\n### Morning\n1. Product Name (Brand) - how to use and why\n2. ...\n### Evening\n1. Product Name (Brand) - how to use and why\n2. ...\n### Product Coverage Checklist\n- Product Name (Brand): Included\n- Product Name (Brand): Included\n### Tips\n- ...\n- ...`;
 
   await requestAssistantReply(routineRequest, {
     chatMessageText:
       "Generate a personalized routine with my selected products.",
+    useConversationHistory: false,
+    persistInConversation: false,
   });
 });
