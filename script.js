@@ -18,7 +18,6 @@ const chatForm = document.getElementById("chatForm");
 const chatWindow = document.getElementById("chatWindow");
 const userInput = document.getElementById("userInput");
 const sendButton = document.getElementById("sendBtn");
-const directionIndicator = document.getElementById("directionIndicator");
 
 /* Replace this with your deployed Cloudflare Worker URL. */
 const workerUrl = window.OPENAI_WORKER_URL || "";
@@ -79,15 +78,6 @@ function applyDocumentDirection(direction) {
   const safeDirection = direction === "rtl" ? "rtl" : "ltr";
 
   document.documentElement.setAttribute("dir", safeDirection);
-
-  if (directionIndicator) {
-    const directionLabel = safeDirection.toUpperCase();
-    directionIndicator.textContent = `Layout: ${directionLabel}`;
-    directionIndicator.setAttribute(
-      "aria-label",
-      `Current layout direction: ${directionLabel}`,
-    );
-  }
 }
 
 function getDirectionFromText(text) {
