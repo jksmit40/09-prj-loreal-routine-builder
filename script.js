@@ -1,6 +1,7 @@
 /* Get references to DOM elements */
 const categoryFilter = document.getElementById("categoryFilter");
 const productsContainer = document.getElementById("productsContainer");
+const selectedProductsList = document.getElementById("selectedProductsList");
 const chatForm = document.getElementById("chatForm");
 const chatWindow = document.getElementById("chatWindow");
 const userInput = document.getElementById("userInput");
@@ -10,6 +11,8 @@ const sendButton = document.getElementById("sendBtn");
 const workerUrl = window.OPENAI_WORKER_URL || "";
 const chatUiMessages = [];
 const conversationMessages = [];
+const selectedProducts = new Map();
+let displayedProducts = [];
 const systemMessage = {
   role: "system",
   content:
@@ -47,6 +50,130 @@ function renderChatMessages() {
 
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
+
+function renderSelectedProducts() {
+  if (selectedProducts.size === 0) {
+    selectedProductsList.innerHTML = `
+      <div class="selected-products-empty">
+        Click a product card to add it here.
+      </div>
+    `;
+    return;
+  }
+
+  selectedProductsList.innerHTML = Array.from(selectedProducts.values())
+    .map(
+      (product) => `
+        <div class="selected-product-item">
+          <div>
+            <h3>${escapeHtml(product.name)}</h3>
+            <p>${escapeHtml(product.brand)}</p>
+          </div>
+          <button
+            type="button"
+            class="remove-selected-btn"
+            data-product-id="${product.id}"
+            aria-label="Remove ${escapeHtml(product.name)}"
+          >
+            Remove
+          </button>
+        </div>
+      `
+    )
+    .join("");
+}
+
+function renderProducts(products) {
+  displayedProducts = products;
+
+  if (products.length === 0) {
+    productsContainer.innerHTML = `
+      <div class="placeholder-message">
+        No products found for this category.
+      </div>
+    `;
+    return;
+  }
+
+  productsContainer.innerHTML = products
+    .map((product) => {
+      const isSelected = selectedProducts.has(product.id);
+
+      return `
+        <div
+          class="product-card${isSelected ? " is-selected" : ""}"
+          data-product-id="${product.id}"
+          role="button"
+          tabindex="0"
+          aria-pressed="${isSelected}"
+        >
+          <img src="${product.image}" alt="${escapeHtml(product.name)}">
+          <div class="product-info">
+            <h3>${escapeHtml(product.name)}</h3>
+            <p>${escapeHtml(product.brand)}</p>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function toggleProductSelection(productId) {
+  const product = displayedProducts.find(
+    (displayedProduct) => displayedProduct.id === productId,
+  );
+
+  if (!product) {
+    return;
+  }
+
+  if (selectedProducts.has(productId)) {
+    selectedProducts.delete(productId);
+  } else {
+    selectedProducts.set(productId, product);
+  }
+
+  renderSelectedProducts();
+  renderProducts(displayedProducts);
+}
+
+selectedProductsList.addEventListener("click", (event) => {
+  const removeButton = event.target.closest(".remove-selected-btn");
+
+  if (!removeButton) {
+    return;
+  }
+
+  const productId = Number(removeButton.dataset.productId);
+  selectedProducts.delete(productId);
+  renderSelectedProducts();
+  renderProducts(displayedProducts);
+});
+
+productsContainer.addEventListener("click", (event) => {
+  const productCard = event.target.closest(".product-card");
+
+  if (!productCard || !productsContainer.contains(productCard)) {
+    return;
+  }
+
+  toggleProductSelection(Number(productCard.dataset.productId));
+});
+
+productsContainer.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+
+  const productCard = event.target.closest(".product-card");
+
+  if (!productCard || !productsContainer.contains(productCard)) {
+    return;
+  }
+
+  event.preventDefault();
+  toggleProductSelection(Number(productCard.dataset.productId));
+});
 
 function addChatMessage(role, content, label) {
   chatUiMessages.push({
@@ -88,19 +215,7 @@ async function loadProducts() {
 
 /* Create HTML for displaying product cards */
 function displayProducts(products) {
-  productsContainer.innerHTML = products
-    .map(
-      (product) => `
-    <div class="product-card">
-      <img src="${product.image}" alt="${product.name}">
-      <div class="product-info">
-        <h3>${product.name}</h3>
-        <p>${product.brand}</p>
-      </div>
-    </div>
-  `,
-    )
-    .join("");
+  renderProducts(products);
 }
 
 /* Filter and display products when category changes */
@@ -116,6 +231,8 @@ categoryFilter.addEventListener("change", async (e) => {
 
   displayProducts(filteredProducts);
 });
+
+renderSelectedProducts();
 
 /* Send the chat request to the Cloudflare Worker */
 chatForm.addEventListener("submit", async (e) => {
