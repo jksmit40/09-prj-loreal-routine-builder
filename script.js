@@ -18,11 +18,11 @@ const chatForm = document.getElementById("chatForm");
 const chatWindow = document.getElementById("chatWindow");
 const userInput = document.getElementById("userInput");
 const sendButton = document.getElementById("sendBtn");
+const directionIndicator = document.getElementById("directionIndicator");
 
 /* Replace this with your deployed Cloudflare Worker URL. */
 const workerUrl = window.OPENAI_WORKER_URL || "";
 const savedSelectionsKey = "loreal-selected-products";
-const savedDirectionKey = "loreal-layout-direction";
 const chatUiMessages = [];
 const conversationMessages = [];
 const selectedProducts = new Map();
@@ -30,6 +30,8 @@ let activeModalProduct = null;
 let displayedProducts = [];
 let allProducts = [];
 const rtlLanguagePrefixes = ["ar", "fa", "he", "ur"];
+const rtlCharacterPattern = /[\u0590-\u08FF\uFB1D-\uFDFD\uFE70-\uFEFC]/;
+let isDirectionLocked = false;
 const systemMessage = {
   role: "system",
   content:
@@ -51,29 +53,63 @@ function getRequestedDirection() {
   const dirFromMarkup = document.documentElement.getAttribute("dir");
 
   if (dirFromMarkup === "rtl" || dirFromMarkup === "ltr") {
+    isDirectionLocked = true;
     return dirFromMarkup;
   }
 
   const dirFromQuery = new URLSearchParams(window.location.search).get("dir");
 
   if (dirFromQuery === "rtl" || dirFromQuery === "ltr") {
+    isDirectionLocked = true;
     return dirFromQuery;
   }
 
-  const dirFromStorage = localStorage.getItem(savedDirectionKey);
-
-  if (dirFromStorage === "rtl" || dirFromStorage === "ltr") {
-    return dirFromStorage;
+  if (isRtlLanguage(document.documentElement.lang)) {
+    return "rtl";
   }
 
-  return isRtlLanguage(document.documentElement.lang) ? "rtl" : "ltr";
+  if (isRtlLanguage(navigator.language)) {
+    return "rtl";
+  }
+
+  return "ltr";
 }
 
 function applyDocumentDirection(direction) {
   const safeDirection = direction === "rtl" ? "rtl" : "ltr";
 
   document.documentElement.setAttribute("dir", safeDirection);
-  localStorage.setItem(savedDirectionKey, safeDirection);
+
+  if (directionIndicator) {
+    const directionLabel = safeDirection.toUpperCase();
+    directionIndicator.textContent = `Layout: ${directionLabel}`;
+    directionIndicator.setAttribute(
+      "aria-label",
+      `Current layout direction: ${directionLabel}`,
+    );
+  }
+}
+
+function getDirectionFromText(text) {
+  if (!text || !text.trim()) {
+    return null;
+  }
+
+  return rtlCharacterPattern.test(text) ? "rtl" : "ltr";
+}
+
+function syncDirectionFromText(text) {
+  if (isDirectionLocked) {
+    return;
+  }
+
+  const directionFromText = getDirectionFromText(text);
+
+  if (!directionFromText) {
+    return;
+  }
+
+  applyDocumentDirection(directionFromText);
 }
 
 applyDocumentDirection(getRequestedDirection());
@@ -681,6 +717,8 @@ async function requestAssistantReply(userMessageText, options = {}) {
     content: userMessageText,
   };
 
+  syncDirectionFromText(userMessageText);
+
   let requestMessages;
 
   if (useConversationHistory) {
@@ -734,6 +772,8 @@ async function requestAssistantReply(userMessageText, options = {}) {
       });
     }
 
+    syncDirectionFromText(assistantReply);
+
     updateChatMessage(
       loadingMessageIndex,
       "assistant",
@@ -777,11 +817,17 @@ categoryFilter.addEventListener("change", async (e) => {
 });
 
 productSearch.addEventListener("input", () => {
+  syncDirectionFromText(productSearch.value);
+
   if (!allProducts.length) {
     return;
   }
 
   applyProductFilters();
+});
+
+userInput.addEventListener("input", () => {
+  syncDirectionFromText(userInput.value);
 });
 
 async function initializeProducts() {
